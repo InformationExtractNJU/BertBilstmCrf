@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 import os
 import codecs
 import re
@@ -28,6 +25,7 @@ config_path = 'chinese_L-12_H-768_A-12/bert_config.json'
 checkpoint_path = 'chinese_L-12_H-768_A-12/bert_model.ckpt'
 dict_path = 'chinese_L-12_H-768_A-12/vocab.txt'
 
+# 自定义tokenizer
 token_dict = {}
 with codecs.open(dict_path,'r',encoding='utf-8') as f:
     for line in f:
@@ -47,16 +45,15 @@ class OurTokenizer(Tokenizer):
 token_dict
 
 tokenizer = OurTokenizer(token_dict)
+# 加载bert模型
 bert_model = load_trained_model_from_checkpoint(config_path,checkpoint_path,seq_len = None)
-
-
 
 # 标签统计
 tags = ['O', 'B-COMPANY', 'I-COMPANY', 'B-TEL', 'I-TEL', 'B-CAR', 'I-CAR', 'B-HARDWARE', 'I-HARDWARE', 'B-PATENT', 'I-PATENT', 'B-SOFTWARE', 'I-SOFTWARE', 'B-PER', 'I-PER', 'B-SERVICE', 'I-SERVICE', 'B-TIME', 'I-TIME', 'B-LOC', 'I-LOC']
 tag2idx = {tag:i+1 for i, tag in enumerate(tags)}
 tag2idx['-PAD-'] = 0
 n_tags = len(tag2idx)
-tag2idx
+print(tag2idx)
 
 import re
 def get_train_data():
@@ -72,7 +69,7 @@ def get_train_data():
             text_str = list_data[i-1]
             text_str = text_str.replace(' ','')
             text_str = text_str.replace('\n','')
-            tags_str.replace('\n',' ')
+            tags_str = tags_str.replace('\n',' ')
             tags_str_list = tags_str.split(' ')
             for j,e in enumerate(tags_str_list):
                 # print(e)
@@ -103,7 +100,7 @@ out = crf(dense)
 model = keras.models.Model(inputs=[x1_in,x2_in],outputs=out)
 model.compile(loss=crf.loss_function,optimizer='adam',metrics=[crf.accuracy])
 model.summary()
-
+iteration_count = 1
 save_path = 'model'
 filepath="model_{epoch:02d}-{val_crf_viterbi_accuracy:.4f}.hdf5"
 
@@ -120,8 +117,13 @@ recall_news_score = []
 precision_news_score = []
 iteration_count = 1
 
-for train,test in kf.split(range(len(train_data[1:11]))):
+result_report = []
+
+for train,test in kf.split(range(len(train_data[1:61]))):
     print("这是第"+str(iteration_count)+'轮交叉验证')
+    print('*'*100)
+    print(test)
+    print('*'*100)
     iteration_count = iteration_count+1
     id_train, text_id_train, X1_train, X2_train, Y_train = [], [], [], [], []
     id_test, text_id_test, X1_test, X2_test, Y_test = [], [], [], [], []
@@ -201,7 +203,7 @@ for train,test in kf.split(range(len(train_data[1:11]))):
     recall_news_score.append(recall_score(test_labels, pred_labels))
     # 统计相关信息
     print(classification_report(test_labels, pred_labels))
-
+    result_report.append(classification_report(test_labels, pred_labels))
     # 随机抽样
     sample_id = random.sample(range(len(id_test)), 1)[0]
     sample_X1 = X1_test[sample_id]
@@ -226,9 +228,47 @@ for train,test in kf.split(range(len(train_data[1:11]))):
     for c, t, p in zip(sample_data[1], pred_label, true_label):
         if t != "-PAD-":
             print("{:15}: {:5} {}".format(c, t, p))
+    # 统计每轮验证的结果
+    pred_label_list = []
+    true_label_list = []
+    tid_list = []
+    text_list = []
+    for i in range(len(id_test)):
+        sample_X = X1_test[i]  #sample_X代表所获得的文本
+        tid = id_test[i][0]   #tid代表测试集的id
+        sample_text_id = text_id_test[i][0] #
+        tid_list.append(sample_text_id)
+        sample_data = train_data[tid]
+        text_list.append(train_data[sample_text_id][1])
+        sample_Y = Y_test[i]
+        predict = model.predict([sample_X.reshape([1, -1]),sample_X.reshape([1, -1])])
+        pred = np.argmax(predict, axis=-1).reshape([-1])
+        true = np.argmax(sample_Y, axis=-1)
+        pred_label = [idx2tag[i] for i in pred]
+        pred_str = ''
+        for s in pred_label:
+            if s != "-PAD-":
+                pred_str += s
+                pred_str += ' '
+        true_label = [idx2tag[i] for i in true]
+        true_str = ''
+        for s in true_label:
+            if s != "-PAD-":
+                true_str += s
+                true_str += ' '
+        pred_label_list.append(pred_str)
+        true_label_list.append(true_str)
+    dict_result = {'id': tid_list, '文本内容': text_list, '预测标签': pred_label_list, '真实标签': true_label_list}
+    pd_result = pd.DataFrame(dict_result)
+    print(pd_result.head())
+    pd_result.to_excel('Test_case/Fold' + str(iteration_count - 1) + 'Result.xls', encoding='utf-8')
+
 print('平均f1值')
 print(np.array(f1_news_score).mean())
 print('平均recall')
 print(np.array(recall_news_score).mean())
 print('平均precision')
 print(np.array(precision_news_score).mean())
+resultScore_write = open('resultScore.txt','w',encoding='utf-8')
+resultScore_write.writelines(result_report)
+resultScore_write.close()

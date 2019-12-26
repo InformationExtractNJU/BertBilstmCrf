@@ -1,0 +1,54 @@
+           precision    recall  f1-score   support
+
+ HARDWARE       0.00      0.00      0.00         5
+  COMPANY       0.00      0.00      0.00         9
+      CAR       0.00      0.00      0.00         7
+      TEL       0.00      0.00      0.00         7
+   PATENT       0.00      0.00      0.00         1
+
+micro avg       0.00      0.00      0.00        29
+macro avg       0.00      0.00      0.00        29
+           precision    recall  f1-score   support
+
+  COMPANY       0.00      0.00      0.00         9
+      CAR       0.00      0.00      0.00         3
+      TEL       0.00      0.00      0.00         4
+ HARDWARE       0.00      0.00      0.00         6
+   PATENT       0.00      0.00      0.00         1
+      PER       0.00      0.00      0.00         1
+ SOFTWARE       0.00      0.00      0.00         2
+
+micro avg       0.00      0.00      0.00        26
+macro avg       0.00      0.00      0.00        26
+           precision    recall  f1-score   support
+
+  COMPANY       0.10      0.18      0.13        11
+      CAR       0.00      0.00      0.00         8
+      PER       0.00      0.00      0.00         5
+   PATENT       0.00      0.00      0.00         1
+      TEL       0.50      1.00      0.67         1
+ HARDWARE       0.00      0.00      0.00         1
+
+micro avg       0.09      0.11      0.10        27
+macro avg       0.06      0.11      0.08        27
+           precision    recall  f1-score   support
+
+ HARDWARE       0.65      0.65      0.65        17
+      CAR       0.11      0.14      0.12         7
+  SERVICE       0.00      0.00      0.00         3
+      TEL       1.00      1.00      1.00         1
+  COMPANY       0.14      0.20      0.17         5
+
+micro avg       0.40      0.42      0.41        33
+macro avg       0.41      0.42      0.42        33
+           precision    recall  f1-score   support
+
+  COMPANY       0.65      0.85      0.73        13
+ SOFTWARE       0.50      0.50      0.50         4
+      PER       0.67      0.67      0.67         3
+      TEL       1.00      0.33      0.50         3
+      CAR       0.00      0.00      0.00         2
+     TIME       0.00      0.00      0.00         2
+
+micro avg       0.48      0.59      0.53        27
+macro avg       0.57      0.59      0.56        27
