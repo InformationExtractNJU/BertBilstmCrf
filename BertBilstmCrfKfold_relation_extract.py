@@ -91,7 +91,7 @@ x2_in = keras.layers.Input(shape=(None,))
 bert_output = bert_model([x1_in,x2_in])
 
 sen_vector = Lambda(lambda x: x[:, 0])(bert_output) # 取出[CLS]对应的向量用来做分类
-out=Dense(13,activation='sigmoid')(sen_vector)
+out=Dense(12,activation='sigmoid')(sen_vector)
 
 # lstm = keras.layers.Bidirectional(keras.layers.LSTM(units = 128,return_sequences = True))(bert_output )
 # drop = keras.layers.Dropout(0.4)(lstm)
@@ -129,7 +129,7 @@ def get_entity(X_data, y_data,B_tag,I_tag):
             entity_name = ''
     return ';'.join(list(set(entity_list)))
 # 采用五折交叉验证，获取数据来进行训练
-for train,test in kf.split(range(len(train_data[0:20]))):
+for train,test in kf.split(range(len(train_data[0:50]))):
     save_path = 'model/model'
     save_path += str(iteration_count)
     if not os.path.exists(save_path):
@@ -159,8 +159,9 @@ for train,test in kf.split(range(len(train_data[0:20]))):
         X2_train.append(X2)
         y_train_list = y.split(' ')
         y_train_list = list(filter(None, y_train_list))
-        print('#'*100)
-        print (y_train_list)
+        y_train_list = list(map(int, y_train_list))
+        # print('#'*100)
+        #         # print (y_train_list)
         Y_train.append(y_train_list)
         id_train.append(id_count)
         id_count = id_count+1
@@ -180,8 +181,9 @@ for train,test in kf.split(range(len(train_data[0:20]))):
         X2_test.append(X2)
         y_list=y.split(' ')
         y_list=list(filter(None,y_list))
-        print('-' * 100)
-        print (y_list)
+        # print('-' * 100)
+        # print (y_list)
+        y_list = list(map(int, y_list))
         Y_test.append(y_list)
         id_test.append([id_count])
         id_count = id_count + 1
@@ -193,7 +195,7 @@ for train,test in kf.split(range(len(train_data[0:20]))):
     print(len(id_train), len(id_test), len(text_id_train), len(text_id_test), X1_train.shape, X1_test.shape,
            len(Y_train), len(Y_test),len(Y_train[0]),len(Y_test[0]))
     # 进行训练
-    history = model.fit([X1_train, X2_train], np.array(Y_train), batch_size=64, epochs=10,
+    history = model.fit([X1_train, X2_train], np.array(Y_train), batch_size=64, epochs=5,
                         validation_data=([X1_test, X2_test], np.array(Y_test)), verbose=1, callbacks=callbacks)
     # 显示训练信息
     hist = pd.DataFrame(history.history)
@@ -203,11 +205,24 @@ for train,test in kf.split(range(len(train_data[0:20]))):
     print(test_pred)
     print(test_pred.shape)
     print (Y_test)
-    print (Y_test.shape)
+    # print (Y_test.shape)
     # # 定义结果标签
     # idx2tag = {i: w for w, i in tag2idx.items()}
     # print('tag2idx:', tag2idx)
     # print('idx2tag:', idx2tag)
+
+    #转换为0-1的整数
+    def pred2label(pred):
+        out=[]
+        for pred_i in pred:
+            out_i = []
+            for p in pred_i:
+                if(p<0.5):
+                    out_i.append(0)
+                else:
+                    out_i.append(1)
+            out.append(out_i)
+        return out
 
     # # 转换实体的预测标签函数
     # def pred2label(pred):
@@ -220,19 +235,26 @@ for train,test in kf.split(range(len(train_data[0:20]))):
     #         out.append(out_i)
     #     return out
     #
-    # pred_labels = pred2label(test_pred)
-    # test_labels = pred2label(Y_test)
+    pred_labels = pred2label(test_pred)
+    test_labels = Y_test
 
-    # # 查看相应的F1值
-    # print("F1-score: {:.1%}".format(f1_score(test_labels, pred_labels)))
-    # print("F1-score: {:.1%}".format(precision_score(test_labels, pred_labels)))
-    # print("F1-score: {:.1%}".format(recall_score(test_labels, pred_labels)))
-    # f1_news_score.append(f1_score(test_labels, pred_labels))
-    # precision_news_score.append(precision_score(test_labels, pred_labels))
-    # recall_news_score.append(recall_score(test_labels, pred_labels))
-    # # 统计相关信息
-    # print(classification_report(test_labels, pred_labels))
-    # result_report.append(classification_report(test_labels, pred_labels))
+
+    test_labels=np.array(test_labels)
+    pred_labels=np.array(pred_labels)
+    print ("-----------------------------------")
+    print (pred_labels)
+    print("***********************************")
+    print (test_labels)
+    # 查看相应的F1值
+    print("F1-score: {:.1%}".format(f1_score(test_labels, pred_labels)))
+    print("F1-score: {:.1%}".format(precision_score(test_labels, pred_labels)))
+    print("F1-score: {:.1%}".format(recall_score(test_labels, pred_labels)))
+    f1_news_score.append(f1_score(test_labels, pred_labels))
+    precision_news_score.append(precision_score(test_labels, pred_labels))
+    recall_news_score.append(recall_score(test_labels, pred_labels))
+    # 统计相关信息
+    print(classification_report(test_labels, pred_labels))
+    result_report.append(classification_report(test_labels, pred_labels))
     # 随机抽样
     sample_id = random.sample(range(len(id_test)), 1)[0]
     sample_X1 = X1_test[sample_id]
@@ -259,12 +281,12 @@ for train,test in kf.split(range(len(train_data[0:20]))):
     #     if t != "-PAD-":
     #         print("{:15}: {:5} {}".format(c, t, p))
 #
-# print('平均f1值')
-# print(np.array(f1_news_score).mean())
-# print('平均recall')
-# print(np.array(recall_news_score).mean())
-# print('平均precision')
-# print(np.array(precision_news_score).mean())
-# resultScore_write = open('resultScore.txt','w',encoding='utf-8')
-# resultScore_write.writelines(result_report)
-# resultScore_write.close()
+print('平均f1值')
+print(np.array(f1_news_score).mean())
+print('平均recall')
+print(np.array(recall_news_score).mean())
+print('平均precision')
+print(np.array(precision_news_score).mean())
+resultScore_write = open('resultScore.txt','w',encoding='utf-8')
+resultScore_write.writelines(result_report)
+resultScore_write.close()
