@@ -20,7 +20,7 @@ import keras.backend as K
 from keras.optimizers import Adam
 # from seqeval.metrics import precision_score, recall_score, classification_report
 from keras.layers import LSTM, Dense
-from sklearn.metrics import precision_score, recall_score, f1_score,classification_report
+from seqeval.metrics import precision_score, recall_score, f1_score,classification_report
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import KFold
 # from LSTM.NonMasking import *
@@ -150,118 +150,142 @@ def trainProcessRelation():
     print('数据读取完毕')
     print(len(train_data[0]))
     print(train_data[0])
-    iteration_count = 1
-    # 采用5折交叉验证
-    kf = KFold(n_splits=5)
+
     id_, text_id, X1, X2, Y = [], [], [], [], []
-    f1_news_score = []
-    recall_news_score = []
-    precision_news_score = []
-    iteration_count = 1
-    result_report = []
+
     model=makeBertCNNModel()
-    # 采用五折交叉验证，获取数据来进行训练
-    for train, test in kf.split(range(len(train_data))):
-        save_path = 'model/model'
-        save_path += str(iteration_count)
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-        filepath = "model_{epoch:02d}.hdf5"
-        callbacks = [
-            keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, verbose=0),
-            keras.callbacks.ModelCheckpoint(os.path.join(save_path, filepath),
-                                            monitor='val_loss', save_best_only=True, verbose=0),
-        ]
-        print("这是第" + str(iteration_count) + '轮交叉验证')
-        print('*' * 100)
-        print(test)
-        print('*' * 100)
-        iteration_count = iteration_count + 1
-        id_train, text_id_train, X1_train, X2_train, Y_train = [], [], [], [], []
-        id_test, text_id_test, X1_test, X2_test, Y_test = [], [], [], [], []
-        maxlen = 256
-        # 对训练集进行处理
-        id_count = 0
-        for i in train:
-            d = train_data[i]
-            text = d[1][:maxlen]
-            y = d[2][:maxlen]
-            x1, x2 = tokenizer.encode(first=text)
-            X1_train.append(x1)
-            X2_train.append(X2)
-            y_train_list = y.split(' ')
-            y_train_list = list(filter(None, y_train_list))
-            y_train_list = list(map(int, y_train_list))
-            Y_train.append(y_train_list)
-            id_train.append(id_count)
-            id_count = id_count + 1
-            text_id_train.append([d[0]])
-        X1_train = keras.preprocessing.sequence.pad_sequences(maxlen=maxlen, sequences=X1_train, padding="post",
-                                                    value=0)
-        X2_train = keras.preprocessing.sequence.pad_sequences(maxlen=maxlen, sequences=X1_train, padding="post",
-                                                              value=0)
-        # 对测试集进行处理
-        id_count = 0
-        for i in test:
-            d = train_data[i]
-            text = d[1][:maxlen]
-            y = d[2][:maxlen]
-            x1, x2 = tokenizer.encode(first=text)
-            X1_test.append(x1)
-            X2_test.append(X2)
-            y_list = y.split(' ')
-            y_list = list(filter(None, y_list))
-            y_list = list(map(int, y_list))
-            Y_test.append(y_list)
-            id_test.append([id_count])
-            id_count = id_count + 1
-            text_id_test.append([d[0]])
-        X1_test = keras.preprocessing.sequence.pad_sequences(maxlen=maxlen, sequences=X1_test, padding="post", value=0)
-        X2_test = keras.preprocessing.sequence.pad_sequences(maxlen=maxlen, sequences=X1_test, padding="post", value=0)
-        print(len(id_train), len(id_test), len(text_id_train), len(text_id_test), X1_train.shape, X1_test.shape,
-              len(Y_train), len(Y_test), len(Y_train[0]), len(Y_test[0]))
+    save_path = 'model/model_10'
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    filepath = "model_{epoch:02d}.hdf5"
+    callbacks = [
+        keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, verbose=0),
+        keras.callbacks.ModelCheckpoint(os.path.join(save_path, filepath),
+                                        monitor='val_loss', save_best_only=True, verbose=0),
+    ]
 
-        Y_test = np.array(Y_test)
-        Y_train = np.array(Y_train)
-        print ("-----------------------")
-        print (Y_train)
-        # 进行训练
-        history = model.fit([X1_train, X2_train], Y_train, batch_size=64, epochs=5,
-                            validation_data=([X1_test, X2_test], Y_test), verbose=1, callbacks=callbacks)
-        # 显示训练信息
-        hist = pd.DataFrame(history.history)
-        # 进行预测
-        pred = model.predict([X1_test, X2_test], verbose=1)
-        pred_labels = pred.tolist()
-        test_labels = Y_test.tolist()
-        # 将结果抓换成字符串
-        pred_labels_str = []
-        test_labels_str = []
-        for i in range(len(pred_labels)):
-            str_temp_pred = ''
-            str_temp_test = ''
-            for j in range(len(pred_labels[i])):
-                str_temp_pred += str(pred_labels[i][j])
-                str_temp_pred += ' '
-                str_temp_test += str(test_labels[i][j])
-                str_temp_test += ' '
-            pred_labels_str.append(str_temp_pred)
-            test_labels_str.append(str_temp_test)
-        # print(test_labels_str)
-        # print(pred_labels_str)
-        # f1_news_score.append(f1_score(test_labels_str, pred_labels_str))
-        # precision_news_score.append(precision_score(test_labels_str, pred_labels_str))
-        # recall_news_score.append(recall_score(test_labels_str, pred_labels_str))
-        # # 统计相关信息
-        # result_report.append(classification_report(test_labels_str, pred_labels_str))
-        result_str = ''
-        for i in range(len(pred_labels_str)):
-            result_str += pred_labels_str[i]
-            result_str += '\n'
-        write_txt = open('Test_case_bert_cnn/Fold' + str(iteration_count - 1) + 'Result.txt', 'w', encoding='utf-8')
-        write_txt.writelines(result_str)
-        write_txt.close()
+    id_train, text_id_train, X1_train, X2_train, Y_train = [], [], [], [], []
+    id_test, text_id_test, X1_test, X2_test, Y_test = [], [], [], [], []
+    maxlen = 256
+    # 对训练集进行处理
+    id_count = 0
+    for i in range(len(train_data)):
+        d = train_data[i]
+        text = d[1][:maxlen]
+        y = d[2][:maxlen]
+        x1, x2 = tokenizer.encode(first=text)
+        X1_train.append(x1)
+        X2_train.append(X2)
+        y_train_list = y.split(' ')
+        y_train_list = list(filter(None, y_train_list))
+        y_train_list = list(map(int, y_train_list))
+        Y_train.append(y_train_list)
+        id_train.append(id_count)
+        id_count = id_count + 1
+        text_id_train.append([d[0]])
+    X1_train = keras.preprocessing.sequence.pad_sequences(maxlen=maxlen, sequences=X1_train, padding="post",
+                                                          value=0)
+    X2_train = keras.preprocessing.sequence.pad_sequences(maxlen=maxlen, sequences=X1_train, padding="post",
+                                                          value=0)
 
+    X1_train, X1_test, X2_train, X2_test, Y_train, Y_test= train_test_split(
+        X1_train, X2_train, Y_train,test_size=0.1)
+
+    Y_test = np.array(Y_test)
+    Y_train = np.array(Y_train)
+    # 进行训练
+    history = model.fit([X1_train, X2_train], Y_train, batch_size=64, epochs=20,
+                        validation_data=([X1_test, X2_test], Y_test), verbose=1, callbacks=callbacks)
+    # 显示训练信息
+    hist = pd.DataFrame(history.history)
+    print(hist.head())
+    # 进行预测
+    pred = model.predict([X1_test, X2_test], verbose=1)
+    pred_labels = pred.tolist()
+    test_labels = Y_test.tolist()
+
+    evalSequence(test_labels,pred_labels,0.5)
+    # limitValue=0.5
+    # pred_labels_list=[]
+    # for line in pred_labels:
+    #     for i in line:
+    #         if(i>limitValue):
+    #             pred_labels_list.append(1)
+    #         else:
+    #             pred_labels_list.append(0)
+    #
+    # test_labels_list=[]
+    # for line in test_labels:
+    #     for i in line:
+    #         if(i>limitValue):
+    #             test_labels_list.append(1)
+    #         else:
+    #             test_labels_list.append(0)
+    #
+    # print ("*************************")
+    # print (pred_labels_list)
+    # print (len(pred_labels_list))
+    # print (test_labels_list)
+    # print (len(test_labels_list))
+
+    # # 将结果抓换成字符串
+    # pred_labels_str = []
+    # test_labels_str = []
+    # for i in range(len(pred_labels)):
+    #     str_temp_pred = ''
+    #     str_temp_test = ''
+    #     for j in range(len(pred_labels[i])):
+    #         str_temp_pred += str(pred_labels[i][j])
+    #         str_temp_pred += ' '
+    #         str_temp_test += str(test_labels[i][j])
+    #         str_temp_test += ' '
+    #     pred_labels_str.append(str_temp_pred)
+    #     test_labels_str.append(str_temp_test)
+    # result_str = ''
+    # for i in range(len(pred_labels_str)):
+    #     result_str += pred_labels_str[i]
+    #     result_str += '\n'
+
+
+    # write_txt = open('Test_case_bert_cnn/Result.txt', 'w', encoding='utf-8')
+    # write_txt.writelines(result_str)
+    # write_txt.close()
+
+dict_relation = {'0':'investment','1':'finance','2':'holding','3':'cooperation','4':'apply','5':'products',
+                 '6':'carry','7':'implement','8':'appoinment','9':'quit','10':'quit','11':'patents'}
+
+def transformFunction(predict_label_list,limitValue):
+    predict_str_2value = []
+    for i in predict_label_list:
+        value_list = []
+        for j in range(len(i)):
+            if(float(i[j]) >= limitValue):
+                value_list.append(dict_relation[str(j)])
+            else:
+                value_list.append('not')
+        # value_list = value_list[0:len(value_list)-1]
+        predict_str_2value.append(value_list[0:len(value_list)-1])
+    return predict_str_2value
+
+def evalSequence(test_labels,pred_labels,limitValue):
+    predict_str_2value=transformFunction(pred_labels,limitValue)
+    train_data_2value=[]
+    for i in test_labels:
+        value_list = []
+        for j in range(len(i)):
+            if (int(i[j]) == 1):
+                value_list.append(dict_relation[str(j)])
+            else:
+                value_list.append('not')
+        train_data_2value.append(value_list)
+    print ("-------------------shape----------------")
+    print(train_data_2value)
+    print(len(train_data_2value))
+    print(predict_str_2value)
+    print(len(predict_str_2value))
+    f = open('resultScoreTotal_bert_cnn_vaild_on_10.txt', 'w', encoding='utf-8')
+    f.writelines(classification_report(train_data_2value, predict_str_2value))
+    f.close()
 
 def main():
     trainProcessRelation()
